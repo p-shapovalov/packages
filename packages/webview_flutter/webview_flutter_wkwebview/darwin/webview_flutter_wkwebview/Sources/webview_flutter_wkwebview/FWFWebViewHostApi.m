@@ -48,6 +48,21 @@
 #endif
 }
 
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {    
+
+    NSArray *gestures = self.superview.gestureRecognizers;
+       
+    for (int i = 0; i < gestures.count; i++) {
+        UIGestureRecognizer *gest = gestures[i];
+        if([gest isKindOfClass: NSClassFromString(@"DelayingGestureRecognizer")]) {
+            gest.enabled = NO;
+        }
+      
+    }
+    
+   return [super hitTest:point withEvent:event];
+}
+
 - (void)observeValueForKeyPath:(NSString *)keyPath
                       ofObject:(id)object
                         change:(NSDictionary<NSKeyValueChangeKey, id> *)change
