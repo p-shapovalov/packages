@@ -510,6 +510,22 @@ class GoogleMapsFlutterAndroid extends GoogleMapsFlutterPlatform {
   /// Currently defaults to false, but the default is subject to change.
   bool useAndroidViewSurface = false;
 
+  /// Set to true when using GoogleMapActivity for native map overlay mode.
+  ///
+  /// In this mode, the map is hosted as a fullscreen native view by the
+  /// Activity, with a transparent Flutter view rendered on top. The GoogleMap
+  /// widget returns a transparent container instead of a PlatformView, and
+  /// communicates with the native map via method channels.
+  ///
+  /// This mode provides better performance than PlatformViews since the map
+  /// is rendered directly by the native Android view system.
+  ///
+  /// To use this mode:
+  /// 1. Set this property to true before creating any GoogleMap widgets
+  /// 2. Use GoogleMapActivity as your main Activity in AndroidManifest.xml
+  /// 3. The map ID will be 0 for the single map instance
+  bool useNativeMapOverlay = true;
+
   /// Requests Google Map Renderer with [AndroidMapRenderer] type.
   ///
   /// See https://pub.dev/packages/google_maps_flutter_android#map-renderer
@@ -564,6 +580,18 @@ class GoogleMapsFlutterAndroid extends GoogleMapsFlutterPlatform {
       ),
       'On Android width must be set when position is set for ground overlays.',
     );
+
+    // In native map overlay mode, the map is managed by GoogleMapActivity.
+    // Return a transparent container and trigger the callback with map ID 0.
+    if (useNativeMapOverlay) {
+      return _NativeMapOverlayWidget(
+        mapId: 0, // GoogleMapActivity uses map ID 0
+        onPlatformViewCreated: onPlatformViewCreated,
+        mapConfiguration: mapConfiguration,
+        mapObjects: mapObjects,
+        platform: this,
+      );
+    }
 
     final PlatformMapViewCreationParams creationParams =
         PlatformMapViewCreationParams(
@@ -1578,3 +1606,174 @@ class AndroidMapRendererException implements Exception {
 /// console, so there's no platform call needed.
 const String _setStyleFailureMessage =
     'Unable to set the map style. Please check console logs for errors.';
+
+/// Widget for native map overlay mode.
+///
+/// This widget returns a transparent container that allows the native map
+/// (managed by GoogleMapActivity) to show through. It initializes the method
+/// channel communication and applies the initial map configuration.
+class _NativeMapOverlayWidget extends StatefulWidget {
+  const _NativeMapOverlayWidget({
+    required this.mapId,
+    required this.onPlatformViewCreated,
+    required this.mapConfiguration,
+    required this.mapObjects,
+    required this.platform,
+  });
+
+  final int mapId;
+  final PlatformViewCreatedCallback onPlatformViewCreated;
+  final PlatformMapConfiguration mapConfiguration;
+  final MapObjects mapObjects;
+  final GoogleMapsFlutterAndroid platform;
+
+  @override
+  State<_NativeMapOverlayWidget> createState() =>
+      _NativeMapOverlayWidgetState();
+}
+
+class _NativeMapOverlayWidgetState extends State<_NativeMapOverlayWidget> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeMap();
+  }
+
+  Future<void> _initializeMap() async {
+    // Wait for the native map to be ready
+    try {
+      await widget.platform.init(widget.mapId);
+
+      // Apply initial configuration
+      await widget.platform.updateMapConfiguration(
+        _mapConfigurationFromPlatform(widget.mapConfiguration),
+        mapId: widget.mapId,
+      );
+
+      // Apply initial map objects
+      if (widget.mapObjects.markers.isNotEmpty) {
+        await widget.platform.updateMarkers(
+          MarkerUpdates.from(const <Marker>{}, widget.mapObjects.markers),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.polygons.isNotEmpty) {
+        await widget.platform.updatePolygons(
+          PolygonUpdates.from(const <Polygon>{}, widget.mapObjects.polygons),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.polylines.isNotEmpty) {
+        await widget.platform.updatePolylines(
+          PolylineUpdates.from(const <Polyline>{}, widget.mapObjects.polylines),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.circles.isNotEmpty) {
+        await widget.platform.updateCircles(
+          CircleUpdates.from(const <Circle>{}, widget.mapObjects.circles),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.heatmaps.isNotEmpty) {
+        await widget.platform.updateHeatmaps(
+          HeatmapUpdates.from(const <Heatmap>{}, widget.mapObjects.heatmaps),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.clusterManagers.isNotEmpty) {
+        await widget.platform.updateClusterManagers(
+          ClusterManagerUpdates.from(
+            const <ClusterManager>{},
+            widget.mapObjects.clusterManagers,
+          ),
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.tileOverlays.isNotEmpty) {
+        await widget.platform.updateTileOverlays(
+          newTileOverlays: widget.mapObjects.tileOverlays,
+          mapId: widget.mapId,
+        );
+      }
+      if (widget.mapObjects.groundOverlays.isNotEmpty) {
+        await widget.platform.updateGroundOverlays(
+          GroundOverlayUpdates.from(
+            const <GroundOverlay>{},
+            widget.mapObjects.groundOverlays,
+          ),
+          mapId: widget.mapId,
+        );
+      }
+
+      if (mounted) {
+        // Notify that the "platform view" is created (using map ID 0)
+        widget.onPlatformViewCreated(widget.mapId);
+      }
+    } catch (e) {
+      // Map may not be ready yet, will be handled by the Activity
+      debugPrint('Native map initialization error: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Return a transparent container that allows the native map to show through
+    return const ColoredBox(color: Color(0x00000000));
+  }
+}
+
+/// Converts PlatformMapConfiguration back to MapConfiguration for updates.
+MapConfiguration _mapConfigurationFromPlatform(PlatformMapConfiguration config) {
+  return MapConfiguration(
+    compassEnabled: config.compassEnabled,
+    mapToolbarEnabled: config.mapToolbarEnabled,
+    cameraTargetBounds: config.cameraTargetBounds != null
+        ? CameraTargetBounds(
+            config.cameraTargetBounds!.bounds != null
+                ? LatLngBounds(
+                    southwest: LatLng(
+                      config.cameraTargetBounds!.bounds!.southwest.latitude,
+                      config.cameraTargetBounds!.bounds!.southwest.longitude,
+                    ),
+                    northeast: LatLng(
+                      config.cameraTargetBounds!.bounds!.northeast.latitude,
+                      config.cameraTargetBounds!.bounds!.northeast.longitude,
+                    ),
+                  )
+                : null,
+          )
+        : null,
+    mapType: config.mapType != null
+        ? MapType.values[config.mapType!.index]
+        : null,
+    minMaxZoomPreference: config.minMaxZoomPreference != null
+        ? MinMaxZoomPreference(
+            config.minMaxZoomPreference!.min,
+            config.minMaxZoomPreference!.max,
+          )
+        : null,
+    rotateGesturesEnabled: config.rotateGesturesEnabled,
+    scrollGesturesEnabled: config.scrollGesturesEnabled,
+    tiltGesturesEnabled: config.tiltGesturesEnabled,
+    trackCameraPosition: config.trackCameraPosition,
+    zoomControlsEnabled: config.zoomControlsEnabled,
+    zoomGesturesEnabled: config.zoomGesturesEnabled,
+    myLocationEnabled: config.myLocationEnabled,
+    myLocationButtonEnabled: config.myLocationButtonEnabled,
+    padding: config.padding != null
+        ? EdgeInsets.only(
+            top: config.padding!.top,
+            left: config.padding!.left,
+            bottom: config.padding!.bottom,
+            right: config.padding!.right,
+          )
+        : null,
+    indoorViewEnabled: config.indoorViewEnabled,
+    trafficEnabled: config.trafficEnabled,
+    buildingsEnabled: config.buildingsEnabled,
+    liteModeEnabled: config.liteModeEnabled,
+    cloudMapId: config.cloudMapId,
+    style: config.style,
+  );
+}

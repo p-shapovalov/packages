@@ -3,3 +3,4 @@
 // found in the LICENSE file.
 
 export 'src/google_maps_flutter_android.dart';
+export 'src/native_map_gesture_controller.dart';
