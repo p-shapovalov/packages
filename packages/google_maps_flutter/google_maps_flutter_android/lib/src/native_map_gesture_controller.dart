@@ -55,4 +55,38 @@ class NativeMapGestureController {
         await _channel.invokeMethod<bool>('isMapGesturesEnabled');
     return result ?? true;
   }
+
+  /// Claims a pointer for exclusive Flutter handling.
+  ///
+  /// When a pointer is claimed, subsequent touch events for that pointer
+  /// will not be forwarded to the native MapView, allowing Flutter widgets
+  /// to handle the gesture exclusively.
+  ///
+  /// This is called automatically by [NativeMapGestureForwarder] when a
+  /// Flutter widget wins the gesture arena. You typically don't need to
+  /// call this directly.
+  ///
+  /// The pointer is automatically released when the touch sequence ends
+  /// (ACTION_UP or ACTION_CANCEL).
+  static Future<void> claimPointer(int pointerId) {
+    return _channel.invokeMethod<void>(
+      'claimPointer',
+      <String, dynamic>{'pointerId': pointerId},
+    );
+  }
+
+  /// Releases a previously claimed pointer.
+  ///
+  /// After releasing, touch events for this pointer will be forwarded
+  /// to the native MapView again.
+  ///
+  /// Note: Pointers are automatically released when the touch sequence ends,
+  /// so calling this is only necessary if you want to release a pointer
+  /// mid-gesture.
+  static Future<void> releasePointer(int pointerId) {
+    return _channel.invokeMethod<void>(
+      'releasePointer',
+      <String, dynamic>{'pointerId': pointerId},
+    );
+  }
 }

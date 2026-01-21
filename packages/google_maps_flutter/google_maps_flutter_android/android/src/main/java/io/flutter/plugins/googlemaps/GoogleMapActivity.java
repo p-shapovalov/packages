@@ -15,8 +15,6 @@ import com.google.android.gms.maps.MapView;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.android.TransparencyMode;
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.plugin.common.MethodCall;
-import io.flutter.plugin.common.MethodChannel;
 
 /**
  * An Activity that hosts a fullscreen Google Map with a transparent Flutter view overlay.
@@ -25,21 +23,12 @@ import io.flutter.plugin.common.MethodChannel;
  * view hierarchy behind a transparent FlutterView.
  *
  */
-public class GoogleMapActivity extends FlutterActivity
-    implements MethodChannel.MethodCallHandler {
-
-  private static final String MAP_GESTURES_CHANNEL =
-      "plugins.flutter.dev/google_maps_flutter_android/gestures";
+public class GoogleMapActivity extends FlutterActivity {
 
   private GoogleMapController mapController;
   private FlutterEngine cachedFlutterEngine;
   private FrameLayout mapWrapper;
-
-  /**
-   * When true, touch events are dispatched to the MapView for gesture handling. When false, the
-   * MapView does not receive touch events, allowing Flutter to handle all gestures exclusively.
-   */
-  private boolean mapGesturesEnabled = true;
+  private NativeMapGestureHandler gestureHandler;
 
   @Override
   protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -106,6 +95,11 @@ public class GoogleMapActivity extends FlutterActivity
 
       // Add MapView at index 0 (behind the FlutterView)
       mapWrapper.addView(mapView, 0);
+
+      // Set the MapView on the gesture handler so it can forward touch events
+      if (gestureHandler != null) {
+        gestureHandler.setMapView(mapView);
+      }
     }
   }
 
@@ -114,11 +108,9 @@ public class GoogleMapActivity extends FlutterActivity
     super.configureFlutterEngine(flutterEngine);
     cachedFlutterEngine = flutterEngine;
 
-    // Set up the method channel for gesture control
-    MethodChannel gesturesChannel =
-        new MethodChannel(
-            flutterEngine.getDartExecutor().getBinaryMessenger(), MAP_GESTURES_CHANNEL);
-    gesturesChannel.setMethodCallHandler(this);
+    // Set up the gesture handler for touch event forwarding
+    gestureHandler =
+        new NativeMapGestureHandler(flutterEngine.getDartExecutor().getBinaryMessenger());
 
     // Create the controller early so method channel handlers are ready before Flutter calls them.
     // The controller will wait for the map to be ready via its OnMapReadyCallback.
@@ -128,33 +120,10 @@ public class GoogleMapActivity extends FlutterActivity
   }
 
   @Override
-  public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
-    switch (call.method) {
-      case "setMapGesturesEnabled":
-        Boolean enabled = call.argument("enabled");
-        if (enabled != null) {
-          mapGesturesEnabled = enabled;
-        }
-        result.success(null);
-        break;
-      case "isMapGesturesEnabled":
-        result.success(mapGesturesEnabled);
-        break;
-      default:
-        result.notImplemented();
-        break;
-    }
-  }
-
-  @Override
   public boolean dispatchTouchEvent(MotionEvent event) {
-    // Forward touch events directly to the MapView for gesture handling.
-    // This is more efficient than method channels for continuous touch events.
-    // The MapView sits behind the transparent FlutterView, so we dispatch
-    // touch events to it directly at the Activity level.
-    View mapView = getMapView();
-    if (mapGesturesEnabled && mapView != null) {
-      mapView.dispatchTouchEvent(event);
+    // Delegate touch event handling to the gesture handler
+    if (gestureHandler != null) {
+      gestureHandler.dispatchTouchEvent(event);
     }
     return super.dispatchTouchEvent(event);
   }
@@ -204,6 +173,10 @@ public class GoogleMapActivity extends FlutterActivity
 
   @Override
   protected void onDestroy() {
+    if (gestureHandler != null) {
+      gestureHandler.dispose();
+      gestureHandler = null;
+    }
     if (mapController != null) {
       mapController.dispose();
       mapController = null;

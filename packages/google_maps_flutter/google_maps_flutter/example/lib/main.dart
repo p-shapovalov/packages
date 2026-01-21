@@ -10,80 +10,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
-import 'animate_camera.dart';
-import 'clustering.dart';
-import 'ground_overlay.dart';
-import 'heatmap.dart';
-import 'lite_mode.dart';
-import 'map_click.dart';
-import 'map_coordinates.dart';
-import 'map_map_id.dart';
-import 'map_ui.dart';
-import 'marker_icons.dart';
-import 'move_camera.dart';
-import 'padding.dart';
-import 'page.dart';
-import 'place_circle.dart';
-import 'place_marker.dart';
-import 'place_polygon.dart';
-import 'place_polyline.dart';
-import 'scrolling_map.dart';
-import 'snapshot.dart';
-import 'tile_overlay.dart';
-
-final List<GoogleMapExampleAppPage> _allPages = <GoogleMapExampleAppPage>[
-  const MapUiPage(),
-  const MapCoordinatesPage(),
-  const MapClickPage(),
-  const AnimateCameraPage(),
-  const MoveCameraPage(),
-  const PlaceMarkerPage(),
-  const MarkerIconsPage(),
-  const ScrollingMapPage(),
-  const PlacePolylinePage(),
-  const PlacePolygonPage(),
-  const PlaceCirclePage(),
-  const PaddingPage(),
-  const SnapshotPage(),
-  const LiteModePage(),
-  const TileOverlayPage(),
-  const GroundOverlayPage(),
-  const ClusteringPage(),
-  const MapIdPage(),
-  const HeatmapPage(),
-];
-
-/// MapsDemo is the Main Application.
-class MapsDemo extends StatelessWidget {
-  /// Default Constructor
-  const MapsDemo({super.key});
-
-  void _pushPage(BuildContext context, GoogleMapExampleAppPage page) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder:
-            (_) =>
-                Scaffold(appBar: AppBar(title: Text(page.title)), body: page),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('GoogleMaps examples')),
-      body: ListView.builder(
-        itemCount: _allPages.length,
-        itemBuilder:
-            (_, int index) => ListTile(
-              leading: _allPages[index].leading,
-              title: Text(_allPages[index].title),
-              onTap: () => _pushPage(context, _allPages[index]),
-            ),
-      ),
-    );
-  }
-}
+/// Whether native map overlay mode is enabled.
+bool get isNativeOverlayMode =>
+    Platform.isAndroid &&
+    (GoogleMapsFlutterPlatform.instance as GoogleMapsFlutterAndroid)
+        .useNativeMapOverlay;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,7 +32,13 @@ void main() {
     initializeMapRenderer();
   }
 
-  runApp(const MaterialApp(home: NativeMapOverlayDemo()));
+  // Wrap the entire app with NativeMapOverlayApp for gesture handling
+  runApp(
+    NativeMapOverlayApp(
+      enabled: isNativeOverlayMode,
+      child: const MaterialApp(home: HomePage()),
+    ),
+  );
 }
 
 Completer<AndroidMapRenderer?>? _initializedRendererCompleter;
@@ -137,18 +74,59 @@ Future<AndroidMapRenderer?> initializeMapRenderer() async {
   return completer.future;
 }
 
-/// Demo showing GoogleMap widget working with native map overlay mode.
-///
-/// This demonstrates that the standard GoogleMap widget and GoogleMapController
-/// work seamlessly whether using PlatformViews or native map overlay mode.
-class NativeMapOverlayDemo extends StatefulWidget {
-  const NativeMapOverlayDemo({super.key});
+/// Home page with navigation to the map demo.
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
-  State<NativeMapOverlayDemo> createState() => _NativeMapOverlayDemoState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: isNativeOverlayMode ? Colors.transparent : null,
+      appBar: AppBar(
+        title: const Text('Native Map Overlay Demo'),
+        backgroundColor: isNativeOverlayMode ? Colors.blue.withOpacity(0.9) : null,
+      ),
+      body: ListView(
+        children: <Widget>[
+          ListTile(
+            leading: const Icon(Icons.map),
+            title: const Text('Map Demo'),
+            subtitle: const Text('Interactive map with overlays'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MapDemoPage(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('About'),
+            subtitle: const Text('Information about native map overlay mode'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AboutPage(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _NativeMapOverlayDemoState extends State<NativeMapOverlayDemo> {
+/// Demo page showing GoogleMap widget working with native map overlay mode.
+class MapDemoPage extends StatefulWidget {
+  const MapDemoPage({super.key});
+
+  @override
+  State<MapDemoPage> createState() => _MapDemoPageState();
+}
+
+class _MapDemoPageState extends State<MapDemoPage> {
   GoogleMapController? _controller;
   CameraPosition? _currentPosition;
   final Set<Marker> _markers = <Marker>{};
@@ -245,35 +223,32 @@ class _NativeMapOverlayDemoState extends State<NativeMapOverlayDemo> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isNativeOverlay = Platform.isAndroid &&
-        (GoogleMapsFlutterPlatform.instance as GoogleMapsFlutterAndroid)
-            .useNativeMapOverlay;
-
     return Scaffold(
-      // Use transparent background when in native overlay mode
-      backgroundColor: isNativeOverlay ? Colors.transparent : null,
+      backgroundColor: isNativeOverlayMode ? Colors.transparent : null,
       appBar: AppBar(
-        title: const Text('Native Map Overlay Demo'),
-        backgroundColor: isNativeOverlay
-            ? Colors.blue.withOpacity(0.9)
-            : null,
+        title: const Text('Map Demo'),
+        backgroundColor: isNativeOverlayMode ? Colors.blue.withOpacity(0.9) : null,
       ),
       body: Stack(
         children: <Widget>[
-          // The GoogleMap widget - in native overlay mode, this returns
-          // a transparent container and the native map shows through
-          Positioned.fill(child: GoogleMap(
-            initialCameraPosition: _initialPosition,
-            onMapCreated: _onMapCreated,
-            onCameraMove: _onCameraMove,
-            markers: _markers,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: false, // We'll use custom controls
-            onTap: (LatLng position) {
-              _showSnackBar('Map tapped at $position');
-            },
-          )),
+          // The GoogleMap widget wrapped with NativeMapOverlayBody
+          Positioned.fill(
+            child: NativeMapOverlayBody(
+              enabled: isNativeOverlayMode,
+              child: GoogleMap(
+                initialCameraPosition: _initialPosition,
+                onMapCreated: _onMapCreated,
+                onCameraMove: _onCameraMove,
+                markers: _markers,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
+                onTap: (LatLng position) {
+                  _showSnackBar('Map tapped at $position');
+                },
+              ),
+            ),
+          ),
 
           // Info panel overlay
           Positioned(
@@ -298,7 +273,7 @@ class _NativeMapOverlayDemoState extends State<NativeMapOverlayDemo> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
-                    isNativeOverlay
+                    isNativeOverlayMode
                         ? 'Mode: Native Map Overlay'
                         : 'Mode: PlatformView',
                     style: const TextStyle(fontWeight: FontWeight.bold),
@@ -372,6 +347,66 @@ class _NativeMapOverlayDemoState extends State<NativeMapOverlayDemo> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// About page explaining native map overlay mode.
+class AboutPage extends StatelessWidget {
+  const AboutPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: isNativeOverlayMode ? Colors.transparent : null,
+      appBar: AppBar(
+        title: const Text('About'),
+        backgroundColor: isNativeOverlayMode ? Colors.blue.withOpacity(0.9) : null,
+      ),
+      body: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Native Map Overlay Mode',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'This demo showcases the native map overlay mode for Google Maps '
+              'Flutter on Android. Instead of using PlatformViews, the map is '
+              'rendered as a native MapView behind a transparent Flutter view.',
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Benefits:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 4),
+            Text('• Better performance - no PlatformView overhead'),
+            Text('• Smoother animations and gestures'),
+            Text('• Full native map rendering quality'),
+            SizedBox(height: 12),
+            Text(
+              'Usage:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 4),
+            Text('1. Wrap your app with NativeMapOverlayApp'),
+            Text('2. Wrap the GoogleMap with NativeMapOverlayBody'),
+            Text('3. Set transparent backgrounds on Scaffolds'),
+          ],
+        ),
       ),
     );
   }

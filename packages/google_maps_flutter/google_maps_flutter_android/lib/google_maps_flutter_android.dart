@@ -4,3 +4,4 @@
 
 export 'src/google_maps_flutter_android.dart';
 export 'src/native_map_gesture_controller.dart';
+export 'src/native_map_gesture_handler.dart';

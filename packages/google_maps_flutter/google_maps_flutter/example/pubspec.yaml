@@ -29,7 +29,9 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-
+dependency_overrides: 
+  google_maps_flutter_android: 
+    path: ../../google_maps_flutter_android
 flutter:
   uses-material-design: true
   assets:
