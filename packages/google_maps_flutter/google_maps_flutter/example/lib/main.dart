@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_native_view_android/flutter_native_view_android.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
@@ -32,9 +33,9 @@ void main() {
     initializeMapRenderer();
   }
 
-  // Wrap the entire app with NativeMapOverlayApp for gesture handling
+  // Wrap the entire app with NativeViewOverlayApp for gesture handling
   runApp(
-    NativeMapOverlayApp(
+    NativeViewOverlayApp(
       enabled: isNativeOverlayMode,
       child: const MaterialApp(home: HomePage()),
     ),
@@ -231,9 +232,9 @@ class _MapDemoPageState extends State<MapDemoPage> {
       ),
       body: Stack(
         children: <Widget>[
-          // The GoogleMap widget wrapped with NativeMapOverlayBody
+          // The GoogleMap widget wrapped with NativeViewOverlayBody
           Positioned.fill(
-            child: NativeMapOverlayBody(
+            child: NativeViewOverlayBody(
               enabled: isNativeOverlayMode,
               child: GoogleMap(
                 initialCameraPosition: _initialPosition,
@@ -402,8 +403,8 @@ class AboutPage extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 4),
-            Text('1. Wrap your app with NativeMapOverlayApp'),
-            Text('2. Wrap the GoogleMap with NativeMapOverlayBody'),
+            Text('1. Wrap your app with NativeViewOverlayApp'),
+            Text('2. Wrap the GoogleMap with NativeViewOverlayBody'),
             Text('3. Set transparent backgrounds on Scaffolds'),
           ],
         ),

@@ -21,6 +21,9 @@ dependencies:
   google_maps_flutter_android: 
     path: ../../google_maps_flutter_android
   google_maps_flutter_platform_interface: ^2.14.0
+  flutter_native_view_android:
+    git:
+      url: https://github.com/p-shapovalov/flutter_native_view_android.git
 
 dev_dependencies:
   build_runner: ^2.1.10

@@ -21,12 +21,11 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  
-  google_maps_flutter_android: 
+  flutter_native_view_android:
     git:
-      url: https://github.com/p-shapovalov/packages.git
-      ref: native-gmap-view
-      path: packages/google_maps_flutter/google_maps_flutter_android
+      url: https://github.com/p-shapovalov/flutter_native_view_android.git
+  google_maps_flutter_android:
+    path: ../google_maps_flutter_android
   google_maps_flutter_ios: ^2.15.4
   google_maps_flutter_platform_interface: ^2.14.0
   google_maps_flutter_web: ^0.5.14

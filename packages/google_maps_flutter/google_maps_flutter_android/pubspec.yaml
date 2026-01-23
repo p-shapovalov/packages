@@ -20,6 +20,9 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_native_view_android:
+    git:
+      url: https://github.com/p-shapovalov/flutter_native_view_android.git
   flutter_plugin_android_lifecycle: ^2.0.1
   google_maps_flutter_platform_interface: ^2.11.0
   stream_transform: ^2.0.0

@@ -9,6 +9,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_native_view_android/flutter_native_view_android.dart';
 import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:stream_transform/stream_transform.dart';
 
@@ -1607,12 +1608,18 @@ class AndroidMapRendererException implements Exception {
 const String _setStyleFailureMessage =
     'Unable to set the map style. Please check console logs for errors.';
 
+/// The view key used for the Google Map native view.
+///
+/// This key must match the key used in [GoogleMapActivity.VIEW_KEY_MAP].
+const String kGoogleMapViewKey = 'map';
+
 /// Widget for native map overlay mode.
 ///
-/// This widget returns a transparent container that allows the native map
-/// (managed by GoogleMapActivity) to show through. It initializes the method
-/// channel communication and applies the initial map configuration.
-class _NativeMapOverlayWidget extends StatefulWidget {
+/// This widget extends [NativeViewWidget] to handle showing/hiding the native
+/// map view when the widget is added to or removed from the widget tree.
+/// It also initializes method channel communication and applies the initial
+/// map configuration.
+class _NativeMapOverlayWidget extends NativeViewWidget {
   const _NativeMapOverlayWidget({
     required this.mapId,
     required this.onPlatformViewCreated,
@@ -1628,29 +1635,27 @@ class _NativeMapOverlayWidget extends StatefulWidget {
   final GoogleMapsFlutterAndroid platform;
 
   @override
+  String get viewKey => kGoogleMapViewKey;
+
+  @override
   State<_NativeMapOverlayWidget> createState() =>
       _NativeMapOverlayWidgetState();
 }
 
-class _NativeMapOverlayWidgetState extends State<_NativeMapOverlayWidget> {
+class _NativeMapOverlayWidgetState
+    extends NativeViewWidgetState<_NativeMapOverlayWidget> {
   @override
-  void initState() {
-    super.initState();
-    _initializeMap();
-  }
+  Future<void> showNativeView() async {
+    await super.showNativeView();
 
-  Future<void> _initializeMap() async {
-    // Wait for the native map to be ready
     try {
       await widget.platform.init(widget.mapId);
 
-      // Apply initial configuration
       await widget.platform.updateMapConfiguration(
         _mapConfigurationFromPlatform(widget.mapConfiguration),
         mapId: widget.mapId,
       );
 
-      // Apply initial map objects
       if (widget.mapObjects.markers.isNotEmpty) {
         await widget.platform.updateMarkers(
           MarkerUpdates.from(const <Marker>{}, widget.mapObjects.markers),
@@ -1707,23 +1712,14 @@ class _NativeMapOverlayWidgetState extends State<_NativeMapOverlayWidget> {
       }
 
       if (mounted) {
-        // Notify that the "platform view" is created (using map ID 0)
         widget.onPlatformViewCreated(widget.mapId);
       }
     } catch (e) {
-      // Map may not be ready yet, will be handled by the Activity
       debugPrint('Native map initialization error: $e');
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    // Return a transparent container that allows the native map to show through
-    return const ColoredBox(color: Color(0x00000000));
-  }
 }
 
-/// Converts PlatformMapConfiguration back to MapConfiguration for updates.
 MapConfiguration _mapConfigurationFromPlatform(PlatformMapConfiguration config) {
   return MapConfiguration(
     compassEnabled: config.compassEnabled,
