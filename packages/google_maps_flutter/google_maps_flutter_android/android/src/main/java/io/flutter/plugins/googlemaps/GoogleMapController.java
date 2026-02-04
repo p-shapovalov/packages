@@ -190,13 +190,7 @@ class GoogleMapController
   }
 
   void init() {
-    // Post lifecycle observer registration to avoid synchronous onCreate() callback
-    // which triggers MapView.onCreate() with blocking disk I/O (SharedPreferences, file system)
-    mapView.post(() -> {
-      if (!disposed) {
-        lifecycleProvider.getLifecycle().addObserver(this);
-      }
-    });
+    lifecycleProvider.getLifecycle().addObserver(this);
     mapView.getMapAsync(this);
   }
 
